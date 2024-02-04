@@ -1,46 +1,44 @@
-import os
-import shutil
 import argparse
+from pathlib import Path
+import shutil
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Recursive directory copy and sorting.")
-    parser.add_argument("source_dir", help="Path to the source directory")
-    parser.add_argument("destination_dir", nargs="?", default="dist", help="Path to the destination directory (default: dist)")
+
+def parse_argv():
+    parser = argparse.ArgumentParser(description="Копіює файли в папку")
+    parser.add_argument(
+        "-s", "--source", type=Path, required=True, help="Початкова папка з файлами"
+        )
+    parser.add_argument(
+        "-d", "--dist", type=Path, default=Path("dist"), help="Папка для копіювання"
+    )
     return parser.parse_args()
 
-def copy_and_sort_files(source_dir, destination_dir):
+
+def recursive_copy(source: Path, dist: Path):
     try:
-        copy_and_sort(source_dir, destination_dir)
-        print("Files copied and sorted successfully.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-def copy_and_sort(source_dir, destination_dir):
-    os.makedirs(destination_dir, exist_ok=True)
-
-    for entity in os.listdir(source_dir):
-        source = os.path.join(source_dir, entity)
-        
-        if os.path.isfile(source):
-            extension = os.path.splitext(entity)[1][1:]
-            destination_sub_dir = os.path.join(destination_dir, extension)
-            os.makedirs(destination_sub_dir, exist_ok=True)
-            shutil.copy2(source, destination_sub_dir)
-
-        if os.path.isdir(source):
-            copy_and_sort(entity, destination_dir)
+        for el in source.iterdir():
+            if el.is_dir():
+                recursive_copy(el, dist)
+            else:
+                folder = el.suffix
+                folder = dist / folder
+                folder.mkdir(exist_ok=True, parents=True)
+                shutil.copy(el, folder)
+    except FileNotFoundError:
+        # Обробка помилки, якщо файл не знайдено
+        print("File Not Found Error: No such file or directory")
+        exit()
+    except PermissionError:
+        # Обробка помилки, якщо є проблеми з доступом до файлу
+        print("Permission Denied Error: Access is denied")
+        exit()
 
 
 def main():
-    args = parse_arguments()
-    source_dir = args.source_dir
-    destination_dir = args.destination_dir
+    args = parse_argv()
+    recursive_copy(args.source, args.dist)
+    print(args)
 
-    if not os.path.exists(source_dir):
-        print("Source directory does not exist.")
-        return
-
-    copy_and_sort_files(source_dir, destination_dir)
 
 if __name__ == "__main__":
     main()
